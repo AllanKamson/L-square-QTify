@@ -1,5 +1,10 @@
 .wrapper {
   width: 160px;
+  text-decoration: none;
+}
+
+.wrapper a {
+  text-decoration: none;
 }
 
 .card {
@@ -9,10 +14,12 @@
   border-radius: 10px;
   overflow: hidden;
   /* cursor: grab; */
+  text-decoration: none;
 }
 
 .card a{
   color: white;
+  text-decoration: none;
 }
 
 .banner {
@@ -44,6 +51,7 @@
   display: -webkit-box;
   -webkit-box-orient: vertical;
   color: white;
+  text-decoration: none;
 }
 
 .chip {

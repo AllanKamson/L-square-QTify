@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import Hero from "./components/Hero/Hero";
 import HomePage from "./pages/HomePage/HomePage";
 import Navbar from "./components/Navbar/Navbar";
+import Faq from "./components/Faq/Faq";
+import AudioPlayer from "./components/AudioPlayer/AudioPlayer";
 import StyledEngineProvider from "@mui/styled-engine/StyledEngineProvider";
 import { Outlet } from "react-router-dom";
 import {
@@ -44,6 +46,8 @@ function App() {
       <StyledEngineProvider injectFirst>
         <Navbar searchData={[...topAlbums, ...newAlbums]} />
         <Outlet context={{ data: { topAlbums, newAlbums, songs, genres } }} />
+        <Faq />
+        <AudioPlayer />
       </StyledEngineProvider>
     </>
   );
