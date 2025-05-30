@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import styles from "./Search.module.css";
 import SearchIcon from "../../assets/search-icon.svg?react";
 import useAutocomplete from "@mui/material/useAutocomplete";
@@ -36,7 +36,13 @@ const Listbox = styled("ul")(({ theme }) => ({
   },
 }));
 
+const API_BASE_URL = 'https://qtify-backend-labs.crio.do';
+
 function Search({ searchData, placeholder }) {
+  const navigate = useNavigate();
+  const [searchResults, setSearchResults] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
   const {
     getRootProps,
     getInputLabelProps,
@@ -45,30 +51,88 @@ function Search({ searchData, placeholder }) {
     getListboxProps,
     getOptionProps,
     groupedOptions,
+    setAnchorEl
   } = useAutocomplete({
-    id: "use-autocomplete-demo",
+    id: "use-autocomplete-demo", 
     options: searchData || [],
     getOptionLabel: (option) => option.title,
+    filterOptions: (options, {inputValue}) => {
+      if(!inputValue) return [];
+      return options.filter(option => option.title.toLowerCase().includes(inputValue.toLowerCase()));
+    }
   });
+  const { onChange: inputOnChange, ...inputProps } = getInputProps();
+  const [ rawInputValue, setRawInputValue ] = useState('');
 
-  const navigate = useNavigate();
-  const onSubmit = (e, value) => {
+  useEffect(() => {
+    const originalInputOnChange = inputOnChange;
+    getInputProps().onChange = (event) => {
+      setRawInputValue(event.target.value);
+      originalInputOnChange(event);
+    };
+    return () => {
+      getInputProps().onChange = originalInputOnChange;
+    };
+  }, [inputOnChange]);
+
+  
+  const onSubmit = async (e) => {
     e.preventDefault();
-    console.log(value);
-    navigate(`/album/${value.slug}`);
+    const searchQuery = value ? value.slug : rawInputValue;
+
+    if(!searchQuery) {
+      console.warn("No search query provided.");
+      setSearchResults([]);
+      return;
+    }
+    console.log("Submitting search for:", searchQuery);
+    setError(null);
+    setIsLoading(true);
+    setSearchResults([]);
+    
+    try {
+      let apiUrl = '';
+      if(value && value.slug) {
+        navigate(`/album/${value.slug}`);
+        setIsLoading(false);
+        return;
+      } else {
+        apiUrl = `${API_BASE_URL}/songs?q=${encodeURIComponent(rawInputValue)}`;
+      }
+      const response = await fetch(apiUrl);
+      if(!response.ok){
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const result = await response.json();
+      console.log("API search response:", result);
+      setSearchResults(result);
+      if(result.length === 1 && result[0].slug){
+        console.log("Single match found, navigate to:", `/album/${result[0].slug}`);
+        navigate(`/album/${result[0].slug}`);
+      }
+    } catch (err) {
+      console.error("Error fetching search result:", err);
+      setError("Failed to fetch search results. Please try again after sometime.");
+      setSearchResults([]);
+    } finally {
+      setIsLoading(false);
+    }
+    
     //Process form data, call API, set state etc.
   };
 
   return (
-    <div style={{ position: "relative" }}>
+    <div style={{ position: "relative" }} ref={setAnchorEl}>
       <form
         className={styles.wrapper}
-        onSubmit={(e) => {
-          onSubmit(e, value);
-        }}
+        onSubmit={onSubmit}
       >
         <div {...getRootProps()}>
+          <label {...getInputLabelProps()}
+          htmlFor="search-album"></label>
           <input
+            type="text"
+            id="search-album"
             name="album"
             className={styles.search}
             placeholder={placeholder}
@@ -85,12 +149,10 @@ function Search({ searchData, placeholder }) {
       {groupedOptions.length > 0 ? (
         <Listbox {...getListboxProps()}>
           {groupedOptions.map((option, index) => {
-            // console.log(option);
             const artists = option.songs.reduce((accumulator, currentValue) => {
               accumulator.push(...currentValue.artists);
               return accumulator;
             }, []);
-
             return (
               <li
                 className={styles.listElement}
@@ -98,7 +160,6 @@ function Search({ searchData, placeholder }) {
               >
                 <div>
                   <p className={styles.albumTitle}>{option.title}</p>
-
                   <p className={styles.albumArtists}>
                     {truncate(artists.join(", "), 40)}
                   </p>
@@ -108,6 +169,24 @@ function Search({ searchData, placeholder }) {
           })}
         </Listbox>
       ) : null}
+      {isLoading && <p>Loading search results...</p>}
+      {error && <p style={{ color: 'red'}}>{error}</p>}
+      {!isLoading && !error && rawInputValue && searchResults.length === 0 && (
+        <p>No results found for "{rawInputValue}".</p>
+      )}
+      {searchResults.length > 0 && !value && (
+        <div className={styles.searchResultsContainer}>
+          <h3>Search Results:</h3>
+          <ul>
+            {searchResults.map((album) => (
+              <li key={album.id}>
+                <a href={`/album/${album.slug}`}>{album.title}</a>
+                (by {album.artists.join(', ')})
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
